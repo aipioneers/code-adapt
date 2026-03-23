@@ -22,7 +22,7 @@ import { profileCreateCommand, profileInspectCommand, profileImportCommand } fro
 const program = new Command();
 
 program
-  .name('adapt')
+  .name('code-adapt')
   .description('Observe. Adapt. Contribute. - CLI for the Adaptation Lifecycle')
   .version('0.1.0')
   .option('--json', 'Output results as JSON');
@@ -31,7 +31,7 @@ program
 
 program
   .command('init')
-  .description('Initialize a new adapt project')
+  .description('Initialize a new code-adapt project')
   .option('--profile <name>', 'Use profile template')
   .action(async (options: { profile?: string }) => {
     const parentOpts = program.opts() as { json?: boolean };

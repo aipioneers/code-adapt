@@ -1,4 +1,4 @@
-# Adapt CLI Agent Guidelines
+# code-adapt CLI Agent Guidelines
 
 ## Build, Test, and Lint Commands
 
