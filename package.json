@@ -1,10 +1,10 @@
 {
-  "name": "adapt-cli",
+  "name": "code-adapt-cli",
   "version": "0.1.0",
   "description": "Observe. Adapt. Contribute. - CLI for the Adaptation Lifecycle",
   "type": "module",
   "bin": {
-    "adapt": "./dist/index.js"
+    "code-adapt": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

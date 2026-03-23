@@ -1,4 +1,4 @@
-# Adapt CLI
+# code-adapt CLI
 
 Observe. Adapt. Contribute.
 
@@ -46,57 +46,57 @@ export GITHUB_TOKEN="your_token_here"
 ### Initialize a Project
 
 ```bash
-adapt init
+code-adapt init
 ```
 
 ### Add Repositories
 
 ```bash
 # Add upstream repository
-adapt repo add upstream myrepo https://github.com/owner/myrepo.git
+code-adapt repo add upstream myrepo https://github.com/owner/myrepo.git
 
 # Add downstream repository
-adapt repo add downstream myproject https://github.com/owner/myproject.git
+code-adapt repo add downstream myproject https://github.com/owner/myproject.git
 ```
 
 ### Observe Changes
 
 ```bash
 # Observe all changes since last time
-adapt observe myrepo
+code-adapt observe myrepo
 
 # Observe changes in the last 7 days
-adapt observe myrepo --since 7d
+code-adapt observe myrepo --since 7d
 
 # Observe only pull requests
-adapt observe myrepo --prs
+code-adapt observe myrepo --prs
 ```
 
 ### Analyze Changes
 
 ```bash
-adapt analyze pr-123
-adapt analyze commit-a1b2c3d
-adapt analyze release-v1.0.0
+code-adapt analyze pr-123
+code-adapt analyze commit-a1b2c3d
+code-adapt analyze release-v1.0.0
 ```
 
 ### Assess Relevance
 
 ```bash
-adapt assess pr-123 --against downstream-project
+code-adapt assess pr-123 --against downstream-project
 ```
 
 ### Plan and Implement
 
 ```bash
 # Generate adaptation plan
-adapt plan adaptation-id
+code-adapt plan adaptation-id
 
 # Implement with dry-run first
-adapt implement adaptation-id --dry-run
+code-adapt implement adaptation-id --dry-run
 
 # Create implementation branch and open PR
-adapt implement adaptation-id --branch --open-pr
+code-adapt implement adaptation-id --branch --open-pr
 ```
 
 ## Project Structure
@@ -131,7 +131,7 @@ npm run lint
 
 ## Architecture
 
-The Adapt CLI follows the adaptation lifecycle pattern:
+The code-adapt CLI follows the adaptation lifecycle pattern:
 
 1. **Observe**: Track upstream changes through observations
 2. **Analyze**: Classify and understand each change
