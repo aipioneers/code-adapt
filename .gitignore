@@ -1,4 +1,13 @@
-node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
 dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
 .claude-flow/
 .swarm/

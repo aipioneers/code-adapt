@@ -27,13 +27,11 @@ A command-line tool for managing the adaptation lifecycle: observing upstream ch
 git clone https://github.com/aipioneers/adapt.git
 cd adapt
 
-# Install dependencies
-npm install
+# Install (editable mode for development)
+pip install -e ".[dev]"
 ```
 
 ### Authentication
-
-Configure GitHub authentication:
 
 ```bash
 # Option 1: Use GitHub CLI
@@ -99,34 +97,37 @@ code-adapt implement adaptation-id --dry-run
 code-adapt implement adaptation-id --branch --open-pr
 ```
 
+## Development
+
+```bash
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Run all tests
+pytest tests/ -v
+
+# Run single test file
+pytest tests/test_models.py -v
+
+# Run tests matching pattern
+pytest -k "test_security" -v
+
+# Run with coverage
+pytest --cov=code_adapt tests/
+```
+
 ## Project Structure
 
 ```
 adapt/
-├── src/
-│   ├── commands/     # CLI command handlers
-│   ├── services/     # Domain services (github, auth, storage)
-│   ├── models/       # TypeScript interfaces and types
-│   └── lib/          # Utilities and shared functions
-├── tests/            # Test files
-├── specs/            # Specification documents
-└── .adapt/           # Runtime data directory
-```
-
-## Development
-
-```bash
-# Build TypeScript
-npm run build
-
-# Run tests
-npm test
-
-# Run tests with coverage
-vitest --coverage
-
-# Run linter
-npm run lint
+├── code_adapt/
+│   ├── cli/main.py      # Typer CLI with all 15 commands
+│   ├── services/         # github, auth, classifier, assessor, id_generator
+│   ├── models.py         # Pydantic models & state machine
+│   ├── storage.py        # YAML/JSON I/O with atomic writes
+│   └── errors.py         # Custom error hierarchy
+├── tests/                # pytest test suite
+└── .adapt/               # Runtime data directory (git-tracked)
 ```
 
 ## Architecture
