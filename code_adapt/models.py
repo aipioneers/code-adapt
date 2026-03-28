@@ -98,6 +98,7 @@ class Repository(BaseModel):
     url: str
     type: Literal["upstream", "downstream"]
     default_branch: str = "main"
+    provider: str = "github"
     license: str | None = None
     tech_stack: list[str] = Field(default_factory=list)
     added_at: str = Field(default_factory=lambda: _now_iso())
