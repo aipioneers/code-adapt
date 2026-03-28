@@ -17,6 +17,7 @@ class Provider(str, Enum):
     GITLAB = "gitlab"
     GITEA = "gitea"
     GITCODE = "gitcode"
+    GITEE = "gitee"
     UNKNOWN = "unknown"
 
 
@@ -29,6 +30,8 @@ _DOMAIN_MAP: dict[str, Provider] = {
     # Gitea's flagship public instance
     "gitea.com": Provider.GITEA,
     "codeberg.org": Provider.GITEA,
+    # Gitee — China's largest git hosting platform
+    "gitee.com": Provider.GITEE,
 }
 
 # Default API base URLs for cloud-hosted providers.
@@ -37,6 +40,7 @@ _API_BASE_MAP: dict[Provider, str] = {
     Provider.GITLAB: "https://gitlab.com/api/v4",
     Provider.GITCODE: "https://gitcode.com/api/v4",
     Provider.GITEA: "https://gitea.com/api/v1",
+    Provider.GITEE: "https://gitee.com/api/v5",
 }
 
 
@@ -118,6 +122,8 @@ def api_base_url(provider: Provider, url: str | None = None) -> str:
         scheme, netloc = _extract_scheme_netloc(url)
         if provider == Provider.GITLAB:
             return f"{scheme}://{netloc}/api/v4"
+        if provider == Provider.GITEE:
+            return f"{scheme}://{netloc}/api/v5"
         if provider == Provider.GITEA:
             return f"{scheme}://{netloc}/api/v1"
         # Generic fallback — just return the base.

@@ -20,6 +20,7 @@ _ENV_VAR_MAP: dict[Provider, str] = {
     Provider.GITLAB: "GITLAB_TOKEN",
     Provider.GITCODE: "GITCODE_TOKEN",
     Provider.GITEA: "GITEA_TOKEN",
+    Provider.GITEE: "GITEE_TOKEN",
 }
 
 
@@ -47,6 +48,7 @@ def get_token(provider: Provider) -> str:
     * **GitLab** — ``GITLAB_TOKEN`` env var.
     * **gitcode** — ``GITCODE_TOKEN`` env var.
     * **Gitea**  — ``GITEA_TOKEN`` env var.
+    * **Gitee**  — ``GITEE_TOKEN`` env var.
 
     Raises :class:`~code_adapt.errors.AuthError` when no token is found.
     """
@@ -69,6 +71,7 @@ def get_token(provider: Provider) -> str:
         Provider.GITLAB: "Set the GITLAB_TOKEN environment variable.",
         Provider.GITCODE: "Set the GITCODE_TOKEN environment variable.",
         Provider.GITEA: "Set the GITEA_TOKEN environment variable.",
+        Provider.GITEE: "Set the GITEE_TOKEN environment variable.",
     }
     hint = hints.get(provider, f"Set a token for provider '{provider.value}'.")
     raise AuthError(f"No {provider.value} token found. {hint}")

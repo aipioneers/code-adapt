@@ -60,6 +60,7 @@ from ..services.github import (
     fetch_releases,
     parse_repo_url,
 )
+from ..services.gitee import GiteeClient
 from ..services.gitlab import GitLabClient
 from ..services.provider import Provider, api_base_url, detect_provider
 from ..services.provider import parse_repo_url as provider_parse_repo_url
@@ -386,6 +387,14 @@ def observe(
             obs_commits = gl.fetch_commits(owner, repo_slug, since_date) if (fetch_all or commits) else []
             obs_prs = gl.fetch_merge_requests(owner, repo_slug, since_date) if (fetch_all or prs) else []
             obs_releases = gl.fetch_releases(owner, repo_slug, since_date) if (fetch_all or releases) else []
+    elif repo_provider == Provider.GITEE:
+        token = get_token(repo_provider)
+        base = api_base_url(repo_provider, repo.url)
+        ge = GiteeClient(base, token)
+        with console.status(f"Observing changes in {repo_name}..."):
+            obs_commits = ge.fetch_commits(owner, repo_slug, since_date) if (fetch_all or commits) else []
+            obs_prs = ge.fetch_pull_requests(owner, repo_slug, since_date) if (fetch_all or prs) else []
+            obs_releases = ge.fetch_releases(owner, repo_slug, since_date) if (fetch_all or releases) else []
     else:
         token = get_github_token()
         with console.status(f"Observing changes in {repo_name}..."):
@@ -487,6 +496,17 @@ def analyze(
                 diff = gl.fetch_commit_diff(owner, repo_slug, ref_id)
             else:
                 # GitLab releases don't have a direct diff — use empty diff with release name
+                diff = {"files": [], "additions": 0, "deletions": 0, "message": f"Release {ref_id}"}
+    elif target_provider == Provider.GITEE:
+        token = get_token(target_provider)
+        base = api_base_url(target_provider, target.url)
+        ge = GiteeClient(base, token)
+        with console.status(f"Fetching {ref_type} {ref_id}..."):
+            if ref_type == "pr":
+                diff = ge.fetch_pr_diff(owner, repo_slug, int(ref_id))
+            elif ref_type == "commit":
+                diff = ge.fetch_commit_diff(owner, repo_slug, ref_id)
+            else:
                 diff = {"files": [], "additions": 0, "deletions": 0, "message": f"Release {ref_id}"}
     else:
         token = get_github_token()
