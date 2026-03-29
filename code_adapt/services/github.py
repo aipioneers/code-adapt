@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Any
 
 import httpx
 
@@ -29,7 +30,7 @@ def _client(token: str) -> httpx.Client:
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         },
-        timeout=30.0,
+        timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0),
     )
 
 
@@ -127,7 +128,7 @@ def fetch_releases(
 
 def fetch_pr_diff(
     token: str, owner: str, repo: str, pr_number: int
-) -> dict:
+) -> dict[str, Any]:
     """Return {files, additions, deletions, patch}."""
     with _client(token) as client:
         files_resp = client.get(
@@ -154,7 +155,7 @@ def fetch_pr_diff(
 
 def fetch_commit_diff(
     token: str, owner: str, repo: str, sha: str
-) -> dict:
+) -> dict[str, Any]:
     """Return {files, additions, deletions, message}."""
     with _client(token) as client:
         resp = client.get(f"/repos/{owner}/{repo}/commits/{sha}")
@@ -170,7 +171,7 @@ def fetch_commit_diff(
         }
 
 
-def fetch_release_info(token: str, owner: str, repo: str, tag: str) -> dict:
+def fetch_release_info(token: str, owner: str, repo: str, tag: str) -> dict[str, Any]:
     """Return {name, message}."""
     with _client(token) as client:
         resp = client.get(f"/repos/{owner}/{repo}/releases/tags/{tag}")

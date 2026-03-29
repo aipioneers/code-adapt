@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json as json_mod
+import logging
 import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
+
+logger = logging.getLogger(__name__)
 
 import typer
 from rich import print as rprint
@@ -44,7 +47,7 @@ from ..models import (
     SuggestedAction,
 )
 from ..services.assessor import assess_relevance
-from ..services.auth import get_github_token
+from ..services.auth import get_github_token, get_token
 from ..services.classifier import (
     classify_change,
     extract_intent,
@@ -58,8 +61,11 @@ from ..services.github import (
     fetch_pull_requests,
     fetch_release_info,
     fetch_releases,
-    parse_repo_url,
 )
+from ..services.gitee import GiteeClient
+from ..services.gitlab import GitLabClient
+from ..services.provider import Provider, api_base_url, detect_provider
+from ..services.provider import parse_repo_url as provider_parse_repo_url
 from ..services.id_generator import generate_id
 from ..storage import (
     ensure_dir,
@@ -133,8 +139,8 @@ def _load_all_adaptations() -> list[Adaptation]:
         if yaml_path.exists():
             try:
                 adaptations.append(Adaptation(**read_yaml(yaml_path)))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to load adaptation from %s: %s", yaml_path, exc)
     return adaptations
 
 
@@ -146,8 +152,8 @@ def _load_all_observations() -> list[Observation]:
     for f in sorted(analyses_dir.glob("obs_*.json")):
         try:
             observations.append(Observation(**read_json(f)))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to load observation from %s: %s", f, exc)
     return observations
 
 
@@ -160,8 +166,8 @@ def _find_analysis(source_ref: str) -> Analysis | None:
             a = Analysis(**read_json(f))
             if a.source_ref == source_ref:
                 return a
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to load analysis from %s: %s", f, exc)
     return None
 
 
@@ -278,12 +284,15 @@ def repo_add(
     if type_ == "downstream" and url == ".":
         resolved_url = str(Path.cwd())
         default_branch = _detect_local_branch()
+        provider = Provider.UNKNOWN.value
     else:
         resolved_url = url
         default_branch = _detect_remote_branch(url)
+        provider = detect_provider(url).value
 
     repo = Repository(
-        name=name, url=resolved_url, type=type_, default_branch=default_branch  # type: ignore[arg-type]
+        name=name, url=resolved_url, type=type_, default_branch=default_branch,  # type: ignore[arg-type]
+        provider=provider,
     )
     repos.append(repo)
     _save_repos(repos)
@@ -367,13 +376,37 @@ def observe(
                 break
 
     fetch_all = not prs and not commits and not releases
-    token = get_github_token()
-    owner, repo_slug = parse_repo_url(repo.url)
 
-    with console.status(f"Observing changes in {repo_name}..."):
-        obs_commits = fetch_commits(token, owner, repo_slug, since_date) if (fetch_all or commits) else []
-        obs_prs = fetch_pull_requests(token, owner, repo_slug, since_date) if (fetch_all or prs) else []
-        obs_releases = fetch_releases(token, owner, repo_slug, since_date) if (fetch_all or releases) else []
+    # Route to correct API client based on provider
+    try:
+        repo_provider = Provider(repo.provider)
+    except ValueError:
+        rprint(f"[red]Unknown provider '{repo.provider}' for '{repo.name}'. Valid: {', '.join(p.value for p in Provider)}[/red]")
+        raise typer.Exit(code=1)
+    owner, repo_slug = provider_parse_repo_url(repo.url)
+
+    if repo_provider in (Provider.GITLAB, Provider.GITCODE):
+        token = get_token(repo_provider)
+        base = api_base_url(repo_provider, repo.url)
+        gl = GitLabClient(base, token)
+        with console.status(f"Observing changes in {repo_name}..."):
+            obs_commits = gl.fetch_commits(owner, repo_slug, since_date) if (fetch_all or commits) else []
+            obs_prs = gl.fetch_merge_requests(owner, repo_slug, since_date) if (fetch_all or prs) else []
+            obs_releases = gl.fetch_releases(owner, repo_slug, since_date) if (fetch_all or releases) else []
+    elif repo_provider == Provider.GITEE:
+        token = get_token(repo_provider)
+        base = api_base_url(repo_provider, repo.url)
+        ge = GiteeClient(base, token)
+        with console.status(f"Observing changes in {repo_name}..."):
+            obs_commits = ge.fetch_commits(owner, repo_slug, since_date) if (fetch_all or commits) else []
+            obs_prs = ge.fetch_pull_requests(owner, repo_slug, since_date) if (fetch_all or prs) else []
+            obs_releases = ge.fetch_releases(owner, repo_slug, since_date) if (fetch_all or releases) else []
+    else:
+        token = get_github_token()
+        with console.status(f"Observing changes in {repo_name}..."):
+            obs_commits = fetch_commits(token, owner, repo_slug, since_date) if (fetch_all or commits) else []
+            obs_prs = fetch_pull_requests(token, owner, repo_slug, since_date) if (fetch_all or prs) else []
+            obs_releases = fetch_releases(token, owner, repo_slug, since_date) if (fetch_all or releases) else []
 
     observation = Observation(
         id=generate_id("obs"),
@@ -454,17 +487,47 @@ def analyze(
         _error_exit(ValidationError("Multiple upstream repos. Use --repo <name>."))
         return
 
-    token = get_github_token()
-    owner, repo_slug = parse_repo_url(target.url)
+    # Route to correct API client based on provider
+    try:
+        target_provider = Provider(target.provider)
+    except ValueError:
+        rprint(f"[red]Unknown provider '{target.provider}' for '{target.name}'. Valid: {', '.join(p.value for p in Provider)}[/red]")
+        raise typer.Exit(code=1)
+    owner, repo_slug = provider_parse_repo_url(target.url)
 
-    with console.status(f"Fetching {ref_type} {ref_id}..."):
-        if ref_type == "pr":
-            diff = fetch_pr_diff(token, owner, repo_slug, int(ref_id))
-        elif ref_type == "commit":
-            diff = fetch_commit_diff(token, owner, repo_slug, ref_id)
-        else:
-            info = fetch_release_info(token, owner, repo_slug, ref_id)
-            diff = {"files": [], "additions": 0, "deletions": 0, "message": info["message"]}
+    if target_provider in (Provider.GITLAB, Provider.GITCODE):
+        token = get_token(target_provider)
+        base = api_base_url(target_provider, target.url)
+        gl = GitLabClient(base, token)
+        with console.status(f"Fetching {ref_type} {ref_id}..."):
+            if ref_type == "pr":
+                diff = gl.fetch_mr_diff(owner, repo_slug, int(ref_id))
+            elif ref_type == "commit":
+                diff = gl.fetch_commit_diff(owner, repo_slug, ref_id)
+            else:
+                # GitLab releases don't have a direct diff — use empty diff with release name
+                diff = {"files": [], "additions": 0, "deletions": 0, "message": f"Release {ref_id}"}
+    elif target_provider == Provider.GITEE:
+        token = get_token(target_provider)
+        base = api_base_url(target_provider, target.url)
+        ge = GiteeClient(base, token)
+        with console.status(f"Fetching {ref_type} {ref_id}..."):
+            if ref_type == "pr":
+                diff = ge.fetch_pr_diff(owner, repo_slug, int(ref_id))
+            elif ref_type == "commit":
+                diff = ge.fetch_commit_diff(owner, repo_slug, ref_id)
+            else:
+                diff = {"files": [], "additions": 0, "deletions": 0, "message": f"Release {ref_id}"}
+    else:
+        token = get_github_token()
+        with console.status(f"Fetching {ref_type} {ref_id}..."):
+            if ref_type == "pr":
+                diff = fetch_pr_diff(token, owner, repo_slug, int(ref_id))
+            elif ref_type == "commit":
+                diff = fetch_commit_diff(token, owner, repo_slug, ref_id)
+            else:
+                info = fetch_release_info(token, owner, repo_slug, ref_id)
+                diff = {"files": [], "additions": 0, "deletions": 0, "message": info["message"]}
 
     files = diff["files"]
     additions = diff["additions"]
@@ -1102,9 +1165,10 @@ def status(json: JSON_OPTION = False) -> None:
 @app.command()
 def sync(
     repo_name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
+    cloud: bool = typer.Option(False, "--cloud", "-c", help="Push adaptations to the Pioneers cloud"),
     json: JSON_OPTION = False,
 ) -> None:
-    """Show synchronization status."""
+    """Show synchronization status. Use --cloud to push to the Pioneers platform."""
     _require_init()
 
     all_repos = _load_repos()
@@ -1123,6 +1187,64 @@ def sync(
     adaptations = _load_all_adaptations()
     observations = _load_all_observations()
 
+    # Cloud sync: push adaptations to the Pioneers API
+    if cloud:
+        try:
+            from pioneers_cli.cloud import require_cloud, sync_adaptation, CloudError
+        except ImportError:
+            rprint("[red]pioneers-cli is not installed.[/red]")
+            rprint("Install it: [bold]pip install pioneers-cli[/bold]")
+            raise typer.Exit(1)
+
+        try:
+            api_url, token = require_cloud()
+        except CloudError as e:
+            rprint(f"[red]{e}[/red]")
+            raise typer.Exit(1)
+
+        if not adaptations:
+            rprint("[yellow]No adaptations to sync.[/yellow]")
+            raise typer.Exit(0)
+
+        rprint(f"\n[bold]Syncing {len(adaptations)} adaptation(s) to {api_url}...[/bold]\n")
+        synced = 0
+        errors = 0
+
+        for adp in adaptations:
+            try:
+                sync_adaptation(
+                    api_url, token,
+                    source_repo=adp.source_repo,
+                    source_ref=adp.source_ref,
+                    status=adp.status.value,
+                    classification=adp.relevance.value if adp.relevance else None,
+                    relevance=adp.relevance.value if adp.relevance else None,
+                    risk=adp.risk_score.value if adp.risk_score else None,
+                    summary=None,
+                    data={
+                        "id": adp.id,
+                        "source_ref_type": adp.source_ref_type,
+                        "suggested_action": adp.suggested_action.value if adp.suggested_action else None,
+                        "strategy": adp.strategy.value if adp.strategy else None,
+                    },
+                )
+                synced += 1
+                rprint(f"  [green]✓[/green] {adp.source_repo} ({adp.source_ref[:12]})")
+            except CloudError as e:
+                errors += 1
+                rprint(f"  [red]✗[/red] {adp.source_repo}: {e}")
+            except Exception as e:
+                errors += 1
+                rprint(f"  [red]✗[/red] {adp.source_repo}: {e}")
+
+        rprint()
+        if errors == 0:
+            rprint(f"[green]Synced {synced} adaptation(s) to the cloud.[/green]")
+        else:
+            rprint(f"[yellow]Synced {synced}, failed {errors} adaptation(s).[/yellow]")
+        return
+
+    # Local sync status (default behavior)
     sync_data = []
     for r in repos:
         last_ts = None
