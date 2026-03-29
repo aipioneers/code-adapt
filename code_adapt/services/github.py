@@ -30,7 +30,7 @@ def _client(token: str) -> httpx.Client:
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         },
-        timeout=30.0,
+        timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0),
     )
 
 

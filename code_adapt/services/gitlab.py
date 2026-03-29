@@ -49,8 +49,14 @@ class GitLabClient:
         return httpx.Client(
             base_url=self.base_url,
             headers=self._headers(),
-            timeout=30.0,
+            timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0),
         )
+
+    def _check_rate_limit(self, resp: httpx.Response) -> None:
+        remaining = resp.headers.get("RateLimit-Remaining")
+        if remaining is not None and int(remaining) < 100:
+            from rich import print as rprint
+            rprint(f"[yellow]GitLab API rate limit low: {remaining} remaining[/yellow]")
 
     # ------------------------------------------------------------------
     # Public API — return types mirror github.py
@@ -67,6 +73,7 @@ class GitLabClient:
                 params["since"] = since.isoformat()
             resp = client.get(f"/projects/{pid}/repository/commits", params=params)
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             return [
                 CommitSummary(
                     sha=c["id"],
@@ -93,6 +100,7 @@ class GitLabClient:
                 params["updated_after"] = since.isoformat()
             resp = client.get(f"/projects/{pid}/merge_requests", params=params)
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             return [
                 PRSummary(
                     number=mr["iid"],
@@ -112,6 +120,7 @@ class GitLabClient:
         with self._client() as client:
             resp = client.get(f"/projects/{pid}/releases", params={"per_page": 100})
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             releases = resp.json()
             if since:
                 since_ts = since.timestamp()
@@ -145,6 +154,7 @@ class GitLabClient:
         with self._client() as client:
             resp = client.get(f"/projects/{pid}/merge_requests/{mr_iid}/changes")
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             data = resp.json()
             changes = data.get("changes", [])
             files = [c.get("new_path", c.get("old_path", "")) for c in changes]
@@ -179,11 +189,13 @@ class GitLabClient:
             # Fetch commit metadata for the message.
             commit_resp = client.get(f"/projects/{pid}/repository/commits/{sha}")
             commit_resp.raise_for_status()
+            self._check_rate_limit(commit_resp)
             commit_data = commit_resp.json()
 
             # Fetch the diff.
             diff_resp = client.get(f"/projects/{pid}/repository/commits/{sha}/diff")
             diff_resp.raise_for_status()
+            self._check_rate_limit(diff_resp)
             diffs = diff_resp.json()
 
             files = [d.get("new_path", d.get("old_path", "")) for d in diffs]

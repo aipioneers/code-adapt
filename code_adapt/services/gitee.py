@@ -37,12 +37,18 @@ class GiteeClient:
     def _client(self) -> httpx.Client:
         return httpx.Client(
             base_url=self.base_url,
-            timeout=30.0,
+            timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0),
         )
 
     def _auth_params(self) -> dict[str, str]:
         """Return query parameters for authentication."""
         return {"access_token": self.token}
+
+    def _check_rate_limit(self, resp: httpx.Response) -> None:
+        remaining = resp.headers.get("X-RateLimit-Remaining")
+        if remaining is not None and int(remaining) < 100:
+            from rich import print as rprint
+            rprint(f"[yellow]Gitee API rate limit low: {remaining} remaining[/yellow]")
 
     # ------------------------------------------------------------------
     # Public API — return types mirror github.py / gitlab.py
@@ -58,6 +64,7 @@ class GiteeClient:
                 params["since"] = since.isoformat()
             resp = client.get(f"/repos/{owner}/{repo}/commits", params=params)
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             return [
                 CommitSummary(
                     sha=c["sha"],
@@ -90,6 +97,7 @@ class GiteeClient:
             }
             resp = client.get(f"/repos/{owner}/{repo}/pulls", params=params)
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             prs = resp.json()
             if since:
                 since_ts = since.timestamp()
@@ -121,6 +129,7 @@ class GiteeClient:
             params: dict = {**self._auth_params(), "per_page": 100}
             resp = client.get(f"/repos/{owner}/{repo}/releases", params=params)
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             releases = resp.json()
             if since:
                 since_ts = since.timestamp()
@@ -157,6 +166,7 @@ class GiteeClient:
                 params={**self._auth_params(), "per_page": 100},
             )
             files_resp.raise_for_status()
+            self._check_rate_limit(files_resp)
             file_data = files_resp.json()
 
             pr_resp = client.get(
@@ -164,6 +174,7 @@ class GiteeClient:
                 params=self._auth_params(),
             )
             pr_resp.raise_for_status()
+            self._check_rate_limit(pr_resp)
             title = pr_resp.json()["title"]
 
             files = [f["filename"] for f in file_data]
@@ -189,6 +200,7 @@ class GiteeClient:
                 params=self._auth_params(),
             )
             resp.raise_for_status()
+            self._check_rate_limit(resp)
             data = resp.json()
             commit_files = data.get("files", [])
             return {

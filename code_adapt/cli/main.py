@@ -378,7 +378,11 @@ def observe(
     fetch_all = not prs and not commits and not releases
 
     # Route to correct API client based on provider
-    repo_provider = Provider(repo.provider) if repo.provider in [p.value for p in Provider] else Provider.GITHUB
+    try:
+        repo_provider = Provider(repo.provider)
+    except ValueError:
+        rprint(f"[red]Unknown provider '{repo.provider}' for '{repo.name}'. Valid: {', '.join(p.value for p in Provider)}[/red]")
+        raise typer.Exit(code=1)
     owner, repo_slug = provider_parse_repo_url(repo.url)
 
     if repo_provider in (Provider.GITLAB, Provider.GITCODE):
@@ -484,7 +488,11 @@ def analyze(
         return
 
     # Route to correct API client based on provider
-    target_provider = Provider(target.provider) if target.provider in [p.value for p in Provider] else Provider.GITHUB
+    try:
+        target_provider = Provider(target.provider)
+    except ValueError:
+        rprint(f"[red]Unknown provider '{target.provider}' for '{target.name}'. Valid: {', '.join(p.value for p in Provider)}[/red]")
+        raise typer.Exit(code=1)
     owner, repo_slug = provider_parse_repo_url(target.url)
 
     if target_provider in (Provider.GITLAB, Provider.GITCODE):

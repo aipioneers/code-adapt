@@ -101,7 +101,10 @@ class Repository(BaseModel):
     provider: str = "github"
     license: str | None = None
     tech_stack: list[str] = Field(default_factory=list)
-    xinchuang_compatible: bool | None = None
+    xinchuang_compatible: bool | None = Field(
+        default=None,
+        description="China IT innovation (Xinchuang) compliance flag. Set by compliance checks.",
+    )
     added_at: str = Field(default_factory=lambda: _now_iso())
 
     @model_validator(mode="after")
