@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json as json_mod
+import logging
 import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
+
+logger = logging.getLogger(__name__)
 
 import typer
 from rich import print as rprint
@@ -58,7 +61,6 @@ from ..services.github import (
     fetch_pull_requests,
     fetch_release_info,
     fetch_releases,
-    parse_repo_url,
 )
 from ..services.gitee import GiteeClient
 from ..services.gitlab import GitLabClient
@@ -137,8 +139,8 @@ def _load_all_adaptations() -> list[Adaptation]:
         if yaml_path.exists():
             try:
                 adaptations.append(Adaptation(**read_yaml(yaml_path)))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to load adaptation from %s: %s", yaml_path, exc)
     return adaptations
 
 
@@ -150,8 +152,8 @@ def _load_all_observations() -> list[Observation]:
     for f in sorted(analyses_dir.glob("obs_*.json")):
         try:
             observations.append(Observation(**read_json(f)))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to load observation from %s: %s", f, exc)
     return observations
 
 
@@ -164,8 +166,8 @@ def _find_analysis(source_ref: str) -> Analysis | None:
             a = Analysis(**read_json(f))
             if a.source_ref == source_ref:
                 return a
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to load analysis from %s: %s", f, exc)
     return None
 
 

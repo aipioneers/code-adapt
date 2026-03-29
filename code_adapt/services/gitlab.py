@@ -7,6 +7,7 @@ self-hosted GitLab instances.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from urllib.parse import quote
 
 import httpx
@@ -135,7 +136,7 @@ class GitLabClient:
 
     def fetch_mr_diff(
         self, owner: str, repo: str, mr_iid: int
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Return ``{files, additions, deletions, message}`` for a merge request.
 
         GET /projects/:id/merge_requests/:iid/changes
@@ -167,7 +168,7 @@ class GitLabClient:
 
     def fetch_commit_diff(
         self, owner: str, repo: str, sha: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Return ``{files, additions, deletions, message}`` for a commit.
 
         GET /projects/:id/repository/commits/:sha and

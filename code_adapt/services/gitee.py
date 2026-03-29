@@ -8,6 +8,7 @@ parameter rather than an ``Authorization`` header.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import httpx
 
@@ -144,7 +145,7 @@ class GiteeClient:
 
     def fetch_pr_diff(
         self, owner: str, repo: str, pr_number: int
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Return ``{files, additions, deletions, message}`` for a pull request.
 
         Gitee provides ``/repos/{owner}/{repo}/pulls/{number}/files`` similar
@@ -177,7 +178,7 @@ class GiteeClient:
 
     def fetch_commit_diff(
         self, owner: str, repo: str, sha: str
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Return ``{files, additions, deletions, message}`` for a commit.
 
         GET /repos/{owner}/{repo}/commits/{sha}
