@@ -353,11 +353,34 @@ def observe(
     releases: Annotated[bool, typer.Option("--releases", help="Only observe releases")] = False,
     json: JSON_OPTION = False,
 ) -> None:
-    """Observe upstream changes for a tracked repository."""
+    """Observe upstream changes for a tracked repository.
+
+    Accepts a registered repo name or a URL. When given a URL that is not yet
+    registered, the repository is auto-registered as upstream.
+    """
     _require_init()
 
     repos = _load_repos()
     repo = next((r for r in repos if r.name == repo_name), None)
+
+    # Auto-register if a URL was given instead of a registered name
+    if not repo and ("/" in repo_name and ("." in repo_name or ":" in repo_name)):
+        url = repo_name
+        owner, slug = provider_parse_repo_url(url)
+        name = slug
+        if any(r.name == name for r in repos):
+            repo = next(r for r in repos if r.name == name)
+        else:
+            provider = detect_provider(url).value
+            default_branch = _detect_remote_branch(url)
+            repo = Repository(
+                name=name, url=url, type="upstream",
+                default_branch=default_branch, provider=provider,
+            )
+            repos.append(repo)
+            _save_repos(repos)
+            rprint(f'[dim]Auto-registered upstream repo "{name}"[/dim]')
+
     if not repo:
         _error_exit(RepoNotFoundError(repo_name))
         return  # unreachable, for type checker
