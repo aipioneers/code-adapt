@@ -1,148 +1,76 @@
-# code-adapt CLI
+# code-adapt
 
-Observe. Adapt. Contribute.
+Never miss an upstream change again.
 
-A command-line tool for managing the adaptation lifecycle: observing upstream changes, analyzing and assessing them, planning adaptations, implementing changes, and contributing back upstream.
+[![PyPI](https://img.shields.io/pypi/v/code-adapt)](https://pypi.org/project/code-adapt/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 
-## Features
-
-- **Observe**: Track upstream repository changes (commits, PRs, releases)
-- **Analyze**: Deep analysis of specific changes with classification and intent extraction
-- **Assess**: Evaluate relevance against downstream projects
-- **Plan**: Generate detailed adaptation plans with strategies
-- **Implement**: Create file stubs and TODO markers for adaptations
-- **Validate**: Verify implemented adaptations
-- **Contribute**: Prepare upstream contributions with draft PRs
-- **Reporting**: Generate weekly and release activity reports
-- **Learning**: Track adaptation outcomes and maintain statistics
-- **Policy Management**: Define and validate adaptation policies
-- **Profile Management**: Create and manage project profiles
+Track upstream repositories, classify changes automatically, assess relevance against your project, generate adaptation plans, and contribute improvements back — all from the terminal.
 
 ## Quick Start
 
-### Installation
-
 ```bash
-# Clone the repository
-git clone https://github.com/aipioneers/adapt.git
-cd adapt
-
-# Install (editable mode for development)
-pip install -e ".[dev]"
+pip install code-adapt
 ```
 
-### Authentication
-
 ```bash
-# Option 1: Use GitHub CLI
-gh auth login
+# Observe upstream changes from the last 7 days
+cadp observe my-upstream --since 7d
 
-# Option 2: Set environment variable
-export GITHUB_TOKEN="your_token_here"
+# Analyze a specific pull request
+cadp analyze pr-451
+
+# Assess relevance against your project
+cadp assess pr-451 --against my-project
+
+# Generate an adaptation plan
+cadp plan adaptation-001
+
+# Create implementation branch and open a draft PR
+cadp implement adaptation-001 --branch --open-pr
 ```
 
-### Initialize a Project
+Requires a GitHub token: `gh auth login` or `export GITHUB_TOKEN="..."`.
 
-```bash
-code-adapt init
+## The Adaptation Lifecycle
+
+code-adapt enforces a structured lifecycle — each stage has a clear purpose, and the CLI guides you through every transition:
+
+```
+observed → analyzed → assessed → planned → implemented → validated → contributed → merged
 ```
 
-### Add Repositories
+Any stage can transition to `rejected`. The state machine is enforced in code — you can't skip stages or make invalid transitions.
 
-```bash
-# Add upstream repository
-code-adapt repo add upstream myrepo https://github.com/owner/myrepo.git
+## Features
 
-# Add downstream repository
-code-adapt repo add downstream myproject https://github.com/owner/myproject.git
-```
-
-### Observe Changes
-
-```bash
-# Observe all changes since last time
-code-adapt observe myrepo
-
-# Observe changes in the last 7 days
-code-adapt observe myrepo --since 7d
-
-# Observe only pull requests
-code-adapt observe myrepo --prs
-```
-
-### Analyze Changes
-
-```bash
-code-adapt analyze pr-123
-code-adapt analyze commit-a1b2c3d
-code-adapt analyze release-v1.0.0
-```
-
-### Assess Relevance
-
-```bash
-code-adapt assess pr-123 --against downstream-project
-```
-
-### Plan and Implement
-
-```bash
-# Generate adaptation plan
-code-adapt plan adaptation-id
-
-# Implement with dry-run first
-code-adapt implement adaptation-id --dry-run
-
-# Create implementation branch and open PR
-code-adapt implement adaptation-id --branch --open-pr
-```
+- **Multi-provider** — GitHub, GitLab, Gitea, gitcode.com, Codeberg, and self-hosted instances
+- **Auto-classification** — security fixes, bugfixes, refactors, and features sorted by regex + heuristics
+- **Relevance scoring** — risk assessment against your project's modules and policies
+- **Adaptation plans** — concrete strategies with implementation branches and draft PRs
+- **Git-tracked state** — all data lives in `.adapt/` as YAML and JSON, no database
+- **Dual output** — rich terminal tables for humans, `--json` for scripts and CI
+- **Policy management** — define and validate adaptation policies
+- **Learning loop** — track outcomes, improve future assessments
 
 ## Development
 
 ```bash
-# Install with dev dependencies
+git clone https://github.com/aipioneers/code-adapt.git
+cd code-adapt
 pip install -e ".[dev]"
-
-# Run all tests
 pytest tests/ -v
-
-# Run single test file
-pytest tests/test_models.py -v
-
-# Run tests matching pattern
-pytest -k "test_security" -v
-
-# Run with coverage
-pytest --cov=code_adapt tests/
 ```
 
-## Project Structure
+## Contributing
 
-```
-adapt/
-├── code_adapt/
-│   ├── cli/main.py      # Typer CLI with all 15 commands
-│   ├── services/         # github, auth, classifier, assessor, id_generator
-│   ├── models.py         # Pydantic models & state machine
-│   ├── storage.py        # YAML/JSON I/O with atomic writes
-│   └── errors.py         # Custom error hierarchy
-├── tests/                # pytest test suite
-└── .adapt/               # Runtime data directory (git-tracked)
-```
-
-## Architecture
-
-The code-adapt CLI follows the adaptation lifecycle pattern:
-
-1. **Observe**: Track upstream changes through observations
-2. **Analyze**: Classify and understand each change
-3. **Assess**: Evaluate relevance and risk
-4. **Plan**: Design implementation strategy
-5. **Implement**: Apply changes to downstream project
-6. **Validate**: Verify correctness
-7. **Contribute**: Push changes upstream
-8. **Learn**: Record outcomes and maintain statistics
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+---
+
+Part of the [AI Pioneers](https://pioneers.ai) ecosystem · [code-explore](https://github.com/aipioneers/code-explore) · [spec-intelligence](https://github.com/aipioneers/spec-intelligence)
