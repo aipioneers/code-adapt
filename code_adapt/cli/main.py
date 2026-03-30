@@ -480,6 +480,30 @@ def observe(
         for r in observation.releases[:10]:
             rprint(f"  {r.tag} — {r.name}")
 
+    # Auto-sync observation to cloud
+    try:
+        from pioneers_cli.cloud import require_cloud, sync_adaptation, CloudError
+        api_url, cloud_token = require_cloud()
+        sync_adaptation(
+            api_url, cloud_token,
+            source_repo=f"{owner}/{repo_slug}",
+            source_ref=observation.id,
+            status="observed",
+            summary=f"{len(observation.commits)} commits, {len(observation.pull_requests)} PRs, {len(observation.releases)} releases",
+            data={
+                "since": since_label,
+                "commits": len(observation.commits),
+                "pull_requests": len(observation.pull_requests),
+                "releases": len(observation.releases),
+                "repo_url": repo.url,
+            },
+        )
+        rprint(f"\n[dim]Synced to cloud.[/dim]")
+    except ImportError:
+        pass
+    except Exception as exc:
+        rprint(f"\n[yellow]Cloud sync skipped: {exc}[/yellow]")
+
 
 # ── analyze ──────────────────────────────────────────────────────────────────
 
